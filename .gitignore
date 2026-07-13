@@ -1,2 +1,31 @@
+# IntelliJ IDEA
 .idea/
 *.iml
+*.iws
+*.ipr
+
+# Maven
+**/target/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Uploaded/local runtime files
+storage/*
+!storage/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
