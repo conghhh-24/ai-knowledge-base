@@ -28,4 +28,9 @@ public class AuthController {
     public LoginVO login(@RequestBody @Valid LoginRequest request) {
         return authService.login(request);
     }
+
+    @GetMapping("/me")
+    public UserVO me() {
+        return authService.getCurrentUser();
+    }
 }

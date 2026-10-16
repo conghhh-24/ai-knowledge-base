@@ -4,7 +4,11 @@ import com.alex.backend.mapper.UserMapper;
 import com.alex.backend.vo.UserVO;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 
 
 @Repository
@@ -31,11 +35,52 @@ public class UserMapperImpl implements UserMapper {
        }catch (EmptyResultDataAccessException exception){
            return null;
        }
+    }
+
+    @Override
+    public UserVO findById(Long id) {
+        try {
+            String sql = "select id,username,status FROM user WHERE id=?";
+            return jdbcTemplate.queryForObject(
+                    sql,
+                    (resultSet, rowNumber) -> {
+                        UserVO userVO = new UserVO();
+                        userVO.setId(resultSet.getLong("id"));
+                        userVO.setUsername(resultSet.getString("username"));
+                        userVO.setStatus(resultSet.getInt("status"));
+                        return userVO;
+                    },
+                    id
+            );
+        }catch (EmptyResultDataAccessException exception){
+            return null;
+        }
 
     }
+
     @Override
     public Long save(String username, String passwordHash){
-        return null;
+        String sql =
+                "insert into user(username, password_hash) values (?, ?)";
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            // 创建 PreparedStatement，并要求返回自增主键
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    sql,
+                    Statement.RETURN_GENERATED_KEYS
+            );
+            // 设置 username
+            preparedStatement.setString(1, username);
+            // 设置 passwordHash
+            preparedStatement.setString(2, passwordHash);
+            // 返回 PreparedStatement
+            return preparedStatement;
+        }, keyHolder);
+
+        return keyHolder.getKey().longValue();
+
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.alex.backend.service.impl;
 
+import com.alex.backend.context.AuthContext;
 import com.alex.backend.mapper.UserMapper;
 import com.alex.backend.request.LoginRequest;
 import com.alex.backend.request.RegisterRequest;
@@ -29,8 +30,29 @@ public class AuthServiceImpl implements AuthService {
     /// 保存到 userMapper
     @Override
     public UserVO register(RegisterRequest request) {
+        // 1. 查询用户名是否已存在
+        UserVO existingUser =
+                userMapper.findByUsername(request.getUsername());
+
+        // 2. 如果已存在，抛出异常
+        if (existingUser != null) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "用户名已存在"
+            );
+        }
+        // 3. 对明文密码进行 BCrypt 加密
         String passwordHash = passwordEncoder.encode(request.getPassword());
-        return null;
+        // 4. 保存用户，取得新 id
+        Long id = userMapper.save(request.getUsername(), passwordHash);
+        // 5. 创建 UserVO，设置 id、username、status
+        UserVO userVO = new UserVO();
+        userVO.setId(id);
+        userVO.setUsername(request.getUsername());
+        userVO.setStatus(1);
+        // 6. 返回 UserVO
+        return userVO;
+
     }
     @Override
     public LoginVO login(LoginRequest request){
@@ -55,6 +77,13 @@ public class AuthServiceImpl implements AuthService {
         loginVO.setUserInfo(user);
         loginVO.setToken(token);
         return loginVO;
+    }
+
+    @Override
+    public UserVO getCurrentUser() {
+        Long userId = AuthContext.getUserId();
+        return userMapper.findById(userId);
+
     }
 
 }
