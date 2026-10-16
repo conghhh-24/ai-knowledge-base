@@ -1,6 +1,8 @@
 package com.alex.backend.service.impl;
 
+import com.alex.backend.common.ErrorCode;
 import com.alex.backend.context.AuthContext;
+import com.alex.backend.exception.BusinessException;
 import com.alex.backend.mapper.UserMapper;
 import com.alex.backend.request.LoginRequest;
 import com.alex.backend.request.RegisterRequest;
@@ -8,10 +10,8 @@ import com.alex.backend.service.AuthService;
 import com.alex.backend.util.JwtUtil;
 import com.alex.backend.vo.LoginVO;
 import com.alex.backend.vo.UserVO;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -36,10 +36,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 2. 如果已存在，抛出异常
         if (existingUser != null) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "用户名已存在"
-            );
+            throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
         // 3. 对明文密码进行 BCrypt 加密
         String passwordHash = passwordEncoder.encode(request.getPassword());
@@ -59,17 +56,17 @@ public class AuthServiceImpl implements AuthService {
         UserVO user = userMapper.findByUsername(request.getUsername());
         //用户存在
         if(user == null){
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"用户名或密码错误");
+            throw new BusinessException(ErrorCode.USERNAME_OR_PASSWORD_ERROR);
         }
         //状态可用
         if(!(Integer.valueOf(1).equals(user.getStatus()))){
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"账号已被禁用");
+            throw new BusinessException(ErrorCode.ACCOUNT_DISABLED);
         }
         String passwordHash = userMapper.findPasswordHashByUsername(user.getUsername());
         boolean matched = passwordEncoder.matches(request.getPassword(),passwordHash);
         //密码正确
         if(!matched){
-           throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"用户名或密码错误");
+           throw new BusinessException(ErrorCode.USERNAME_OR_PASSWORD_ERROR);
         }
         //生成完整 JWT 字符串
         String token =  jwtUtil.generateToken(user);
