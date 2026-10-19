@@ -25,6 +25,20 @@
 
 ### 3.2 返回结果
 
+成功响应统一使用 `Result<T>`：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "username": "alex",
+    "status": 1
+  }
+}
+```
+
 - `id`
 - `username`
 - `status`
@@ -44,8 +58,25 @@
 
 ### 4.2 返回结果
 
+成功响应统一使用 `Result<T>`，其中 `data` 包含：
+
 - `token`
 - `userInfo`
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "token": "<jwt>",
+    "userInfo": {
+      "id": 1,
+      "username": "alex",
+      "status": 1
+    }
+  }
+}
+```
 
 ### 4.3 失败情况
 
@@ -56,6 +87,8 @@
 ## 5. 当前用户接口
 
 ### 5.1 返回结果
+
+成功响应统一使用 `Result<T>`，`data` 为当前用户信息。
 
 - `id`
 - `username`

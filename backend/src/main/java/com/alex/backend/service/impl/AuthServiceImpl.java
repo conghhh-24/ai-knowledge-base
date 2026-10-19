@@ -13,6 +13,7 @@ import com.alex.backend.vo.UserVO;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+
 @Service
 public class AuthServiceImpl implements AuthService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();//手动创建对象
@@ -80,7 +81,8 @@ public class AuthServiceImpl implements AuthService {
     public UserVO getCurrentUser() {
         Long userId = AuthContext.getUserId();
         return userMapper.findById(userId);
-
     }
+
+
 
 }

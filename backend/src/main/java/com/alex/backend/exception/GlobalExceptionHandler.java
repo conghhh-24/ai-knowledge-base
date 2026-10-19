@@ -8,6 +8,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+
+//@RestControllerAdvice 主要处理 Spring MVC Handler，也就是 Controller 执行阶段产生并传播出来的异常。
+// Service 通常是被 Controller 调用的，所以 Service 抛出的异常也能沿调用栈交给全局处理器。
+// Interceptor 的 preHandle() 在 Controller 执行前运行，异常处理路径不同
+// 因此项目通过 HandlerExceptionResolver.resolveException() 将异常转交给 Spring，最终匹配 GlobalExceptionHandler。
+
 @RestControllerAdvice//告诉 Spring这是一个全局 Controller 异常处理类，返回值直接转换成 JSON。
 public class GlobalExceptionHandler {
 
@@ -16,8 +22,8 @@ public class GlobalExceptionHandler {
             BusinessException exception) {
 
         return ResponseEntity
-                .status(exception.getErrorCode().getStatus())
-                .body(Result.failure(exception.getErrorCode()));
+                .status(exception.getErrorCode().getStatus())//HTTP 状态码
+                .body(Result.failure(exception.getErrorCode()));//统一错误 JSON
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

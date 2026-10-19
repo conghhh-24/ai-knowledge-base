@@ -20,6 +20,8 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
     private final HandlerExceptionResolver exceptionResolver;
+    //AuthInterceptor 不是 Controller 方法，它不会像 Controller 一样自然地进入 @RestControllerAdvice 的处理流程
+    //因此项目使用 HandlerExceptionResolver，手动把异常转交给 Spring
 
     public AuthInterceptor(
             JwtUtil jwtUtil,
@@ -75,9 +77,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             HttpServletRequest request,
             HttpServletResponse response,
             Exception exception) {
-        exceptionResolver.resolveException(
-                request,
-                response,
+        exceptionResolver.resolveException(//exceptionResolver.resolveException(...)
+                request,                  // 意思是让spring请根据这个异常，找到合适的异常处理方法。
+                response,                //发现是BusinessException，于是匹配到GlobalExceptionHandler.handleBusinessException()
                 null,
                 exception
         );

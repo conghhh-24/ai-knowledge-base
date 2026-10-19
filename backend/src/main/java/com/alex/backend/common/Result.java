@@ -32,14 +32,7 @@ public class Result<T> {
         return new Result<T>(errorCode.getCode(), errorCode.getMessage(), null);
     }
 
-    public static <T> Result<T> failure(
-            ErrorCode errorCode,
-            String message) {
-
-        return new Result<>(
-                errorCode.getCode(),
-                message,
-                null
-        );
+    public static <T> Result<T> failure(ErrorCode errorCode, String message) {
+        return new Result<>(errorCode.getCode(), message, null);
     }
 }
