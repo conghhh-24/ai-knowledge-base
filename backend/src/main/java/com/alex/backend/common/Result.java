@@ -1,5 +1,6 @@
 package com.alex.backend.common;
 
+//负责包装返回结果
 public class Result<T> {
     private Integer code;
     private String message;
