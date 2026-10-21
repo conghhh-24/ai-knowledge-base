@@ -36,19 +36,28 @@ public class DocumentServiceImpl implements DocumentService {
             String storedName = UUID.randomUUID().toString() + suffix;
             target = directory.resolve(storedName);
             file.transferTo(target);
-            //文件内容已保存到磁盘，接下来把文件信息写入数据库
         } catch (IOException e) {
             throw new RuntimeException("保存文档文件失败", e);
         }
-
-        Long documentId = documentMapper.save(
-                userId,
-                fileName,
-                target.toString(),
-                suffix,
-                file.getSize(),
-                "UPLOADED"
-        );
+        //文件内容已保存到磁盘，接下来把文件信息写入数据库
+        Long documentId;
+           try {
+               documentId = documentMapper.save(
+                       userId,
+                       fileName,
+                       target.toString(),
+                       suffix,
+                       file.getSize(),
+                       "UPLOADED"
+               );
+           }catch(RuntimeException e) {
+               try {
+                   Files.deleteIfExists(target);
+               }catch (IOException cleanupException) {
+                   e.addSuppressed(cleanupException);
+               }
+               throw e;
+           }
         DocumentVO documentVO = new DocumentVO();
         documentVO.setId(documentId);
         documentVO.setFileName(fileName);

@@ -7,6 +7,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 
 //@RestControllerAdvice 主要处理 Spring MVC Handler，也就是 Controller 执行阶段产生并传播出来的异常。
@@ -42,6 +43,19 @@ public class GlobalExceptionHandler {
                 .status(ErrorCode.PARAM_ERROR.getStatus())
                 .body(Result.failure(
                         ErrorCode.PARAM_ERROR,
+                        message
+                ));
+    }
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Result<Void>> handleSizeExceededException(
+            MaxUploadSizeExceededException exception) {
+
+        String message = "文件大小不能超过50MB，整个请求不能超过52MB";
+
+        return ResponseEntity
+                .status(ErrorCode.SIZE_EXCEEDED.getStatus())
+                .body(Result.failure(
+                        ErrorCode.SIZE_EXCEEDED,
                         message
                 ));
     }
