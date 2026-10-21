@@ -4,12 +4,11 @@ package com.alex.backend.service.impl;
 import com.alex.backend.common.ErrorCode;
 import com.alex.backend.context.AuthContext;
 import com.alex.backend.exception.BusinessException;
+import com.alex.backend.mapper.DocumentMapper;
 import com.alex.backend.service.DocumentService;
 import com.alex.backend.vo.DocumentVO;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,23 +16,47 @@ import java.util.UUID;
 
 @Service
 public class DocumentServiceImpl implements DocumentService {
+    private final DocumentMapper documentMapper;
+
+    public DocumentServiceImpl(DocumentMapper documentMapper) {
+        this.documentMapper = documentMapper;
+    }
     @Override
-    public DocumentVO upload(MultipartFile file){
+    public DocumentVO upload(MultipartFile file) {
         validateFile(file);
         Long userId = AuthContext.getUserId();
-        try{
+        String fileName;
+        Path target;
+        String suffix;
+        try {
             Path directory = Path.of("storage", userId.toString()).toAbsolutePath();
             Files.createDirectories(directory);
-            String fileName = file.getOriginalFilename();
-            String suffix = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
+            fileName = file.getOriginalFilename();
+            suffix = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
             String storedName = UUID.randomUUID().toString() + suffix;
-            Path target = directory.resolve(storedName);
+            target = directory.resolve(storedName);
             file.transferTo(target);
-        }catch(IOException e){
+            //文件内容已保存到磁盘，接下来把文件信息写入数据库
+        } catch (IOException e) {
             throw new RuntimeException("保存文档文件失败", e);
         }
 
-        return null;
+        Long documentId = documentMapper.save(
+                userId,
+                fileName,
+                target.toString(),
+                suffix,
+                file.getSize(),
+                "UPLOADED"
+        );
+        DocumentVO documentVO = new DocumentVO();
+        documentVO.setId(documentId);
+        documentVO.setFileName(fileName);
+        documentVO.setFileType(suffix);
+        documentVO.setFileSize(file.getSize());
+        documentVO.setStatus("UPLOADED");
+
+        return documentVO;
     }
 
     private void validateFile(MultipartFile file){

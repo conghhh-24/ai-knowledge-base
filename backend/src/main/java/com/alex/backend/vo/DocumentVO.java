@@ -26,4 +26,24 @@ public class DocumentVO {
     public String getStatus() {
         return status;
     }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
+
+    public void setFileSize(Long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }

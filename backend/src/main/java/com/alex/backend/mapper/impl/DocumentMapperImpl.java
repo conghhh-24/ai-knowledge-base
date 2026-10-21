@@ -4,10 +4,12 @@ import com.alex.backend.mapper.DocumentMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 
+@Repository
 public class DocumentMapperImpl implements DocumentMapper {
     private final JdbcTemplate jdbcTemplate;
 
@@ -34,7 +36,7 @@ public class DocumentMapperImpl implements DocumentMapper {
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbcTemplate.update(connection -> {
-            PreparedStatement preparedStatement =
+            PreparedStatement preparedStatement =// PreparedStatement表示一条“带参数的 SQL”。SQL 中的 ? 由它安全填入
                     connection.prepareStatement(
                             sql,
                             Statement.RETURN_GENERATED_KEYS
