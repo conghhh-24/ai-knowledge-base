@@ -10,7 +10,8 @@ public enum ErrorCode {
     TOKEN_EXPIRED(1004, "Token 已过期", HttpStatus.UNAUTHORIZED),
     TOKEN_INVALID(1005, "Token 无效", HttpStatus.UNAUTHORIZED),
     ACCOUNT_DISABLED(1006, "账号已被禁用", HttpStatus.FORBIDDEN),
-    SIZE_EXCEEDED(1007,"文件过大", HttpStatus.PAYLOAD_TOO_LARGE),;
+    SIZE_EXCEEDED(1007,"文件过大", HttpStatus.PAYLOAD_TOO_LARGE),
+    DOCUMENT_NOT_FOUND(1008, "文档不存在或无权访问", HttpStatus.NOT_FOUND);
 
     private final Integer code;
     private final String message;

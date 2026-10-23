@@ -8,10 +8,12 @@ import com.alex.backend.mapper.DocumentMapper;
 import com.alex.backend.service.DocumentService;
 import com.alex.backend.vo.DocumentVO;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -67,7 +69,37 @@ public class DocumentServiceImpl implements DocumentService {
 
         return documentVO;
     }
+    @Override
+    public List<DocumentVO> listDocuments(){
+        Long userId = AuthContext.getUserId();
+        return documentMapper.findByUserId(userId);
+    }
 
+    @Override
+    public DocumentVO getDocumentById(Long id){
+       DocumentVO documentVO = documentMapper.findByIdAndUserId(id, AuthContext.getUserId());
+       if(documentVO == null){
+           throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
+       }
+       return documentVO;
+    }
+    @Transactional//表示这个方法里的数据库修改先不要正式生效，等方法正常执行完再一起确认；如果中途抛出需要回滚的异常，就撤销这些修改。
+    @Override
+    public void deleteDocument(Long id){
+        String filePath = documentMapper.findFilePathByIdAndUserId(id, AuthContext.getUserId());
+        if(filePath == null){
+            throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
+        }
+        int n = documentMapper.deleteByIdAndUserId(id, AuthContext.getUserId());
+        if(n == 0){
+            throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
+        }
+        try{
+            Files.deleteIfExists(Path.of(filePath));
+        }catch (IOException exception) {
+            throw new RuntimeException("删除文档文件失败", exception);
+        }
+    }
     private void validateFile(MultipartFile file){
         if(file==null||file.isEmpty()){
             throw new BusinessException(ErrorCode.PARAM_ERROR);
