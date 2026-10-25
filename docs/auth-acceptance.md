@@ -6,20 +6,20 @@
 - MySQL：`localhost:3307/ai_knowledge_base`
 - Redis：`localhost:6379`
 - `JWT_SECRET`：已设置，且长度满足 HS256 密钥要求
-- 验收日期：
+- 验收日期：2026-10-23
 
 ## 场景记录
 
 | 场景 | 请求 | 预期 | 实际状态 | 结果 |
 |---|---|---|---|---|
-| 注册成功 | `POST /api/auth/register` | HTTP 200，`code=0`，返回用户信息 | | |
-| 重复用户名 | 同上，使用已存在用户名 | HTTP 409，返回用户名已存在 | | |
-| 正确登录 | `POST /api/auth/login` | HTTP 200，`code=0`，返回 token | | |
-| 错误密码 | 同上，密码错误 | HTTP 401，返回用户名或密码错误 | | |
-| 无 Token 访问当前用户 | `GET /api/auth/me` | HTTP 401，返回 Token 缺失 | | |
-| 合法 Token 访问当前用户 | 带 `Authorization: Bearer <token>` | HTTP 200，返回当前用户 | | |
-| 伪造 Token | 带非法 Token | HTTP 401，返回 Token 无效 | | |
-| 过期 Token | 带已过期 Token | HTTP 401，返回 Token 已过期 | | |
+| 注册成功 | `POST /api/auth/register` | HTTP 200，`code=0`，返回用户信息 | HTTP 200，`code=0`，返回用户信息 | 通过 |
+| 重复用户名 | 同上，使用已存在用户名 | HTTP 409，返回用户名已存在 | HTTP 409，返回用户名已存在 | 通过 |
+| 正确登录 | `POST /api/auth/login` | HTTP 200，`code=0`，返回 token | HTTP 200，`code=0`，返回 token 和用户信息 | 通过 |
+| 错误密码 | 同上，密码错误 | HTTP 401，返回用户名或密码错误 | HTTP 401，返回用户名或密码错误 | 通过 |
+| 无 Token 访问当前用户 | `GET /api/auth/me` | HTTP 401，返回 Token 缺失 | HTTP 401，返回 Token 缺失 | 通过 |
+| 合法 Token 访问当前用户 | 带 `Authorization: Bearer <token>` | HTTP 200，返回当前用户 | HTTP 200，返回当前用户信息 | 通过 |
+| 伪造 Token | 带非法 Token | HTTP 401，返回 Token 无效 | HTTP 401，返回 Token 无效 | 通过 |
+| 过期 Token | 带已过期 Token | HTTP 401，返回 Token 已过期 | HTTP 401，返回 Token 已过期 | 通过 |
 
 ## 数据库检查
 
@@ -31,9 +31,9 @@ FROM user
 WHERE username = '<测试用户名>';
 ```
 
-验收标准：`password_hash` 不等于注册时提交的明文密码，并且以 BCrypt 哈希格式保存。
+验收结果：`password_hash` 不等于注册时提交的明文密码，并且以 BCrypt 哈希格式保存。通过。
 
 ## 结论
 
-- Sprint 1 是否通过：
-- 未通过项及原因：
+- Sprint 1 是否通过：是
+- 未通过项及原因：无
