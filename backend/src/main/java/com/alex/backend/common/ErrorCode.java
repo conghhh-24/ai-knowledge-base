@@ -11,7 +11,9 @@ public enum ErrorCode {
     TOKEN_INVALID(1005, "Token 无效", HttpStatus.UNAUTHORIZED),
     ACCOUNT_DISABLED(1006, "账号已被禁用", HttpStatus.FORBIDDEN),
     SIZE_EXCEEDED(1007,"文件过大", HttpStatus.PAYLOAD_TOO_LARGE),
-    DOCUMENT_NOT_FOUND(1008, "文档不存在或无权访问", HttpStatus.NOT_FOUND);
+    DOCUMENT_NOT_FOUND(1008, "文档不存在或无权访问", HttpStatus.NOT_FOUND),
+    AI_SERVICE_UNAVAILABLE(1009,"AI 服务暂不可用", HttpStatus.SERVICE_UNAVAILABLE),
+    AI_SERVICE_ERROR(10010,"AI 服务处理失败", HttpStatus.BAD_GATEWAY);
 
     private final Integer code;
     private final String message;

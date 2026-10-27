@@ -1,11 +1,20 @@
 package com.alex.backend.client;
 
+import com.alex.backend.common.ErrorCode;
+import com.alex.backend.exception.BusinessException;
 import com.alex.backend.request.AiChatRequest;
 import com.alex.backend.vo.AiChatVO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 @Component
 public class AiClient {
@@ -17,20 +26,37 @@ public class AiClient {
             RestClient.Builder builder,
             @Value("${ai.service.url}") String aiServiceUrl
     ) {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3))//防止连接超时
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));//等待响应最多 10 秒
         this.restClient = builder
+                .requestFactory(requestFactory)
                 .baseUrl(aiServiceUrl)
                 .build();
     }
 
     public AiChatVO chat(AiChatRequest request) {
-        return restClient.post()
-                .uri("/chat")
-                //表示发送：POST http://localhost:8000/chat
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(request)
-                //把 AiChatRequest 转成 JSON
-                .retrieve()
-                .body(AiChatVO.class);
-                //读取 FastAPI 返回的 JSON，并转换成 AiChatVO
+        try{
+            return restClient.post()
+                    .uri("/chat")
+                    //表示发送：POST http://localhost:8000/chat
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    //把 AiChatRequest 转成 JSON
+                    .retrieve()
+                    .body(AiChatVO.class);
+            //读取 FastAPI 返回的 JSON，并转换成 AiChatVO
+        }catch(ResourceAccessException e){
+            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        }catch(HttpServerErrorException e){//表示下游返回了 HTTP 5xx
+            throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+        }catch (HttpClientErrorException.UnprocessableEntity e) {
+            throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+        }
+
     }
 }

@@ -1,6 +1,6 @@
 package com.alex.backend.controller;
 
-import com.alex.backend.client.AiClient;
+import com.alex.backend.service.ChatMessageService;
 import com.alex.backend.common.Result;
 import com.alex.backend.request.AiChatRequest;
 import com.alex.backend.vo.AiChatVO;
@@ -17,12 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/ai")
 public class AiController {
 
-    private final AiClient aiClient;
-    public  AiController(AiClient aiClient) {
-        this.aiClient = aiClient;
+    private final ChatMessageService chatMessageService;
+    public AiController(ChatMessageService chatMessageService) {
+        this.chatMessageService = chatMessageService;
     }
     @PostMapping("/chat")
     public Result<AiChatVO> chat(@RequestBody @Valid AiChatRequest request) {//@RequestBody它告诉 Spring：把 HTTP 请求体中的 JSON 转换成 AiChatRequest 对象
-        return Result.success(aiClient.chat(request));
+        return Result.success(chatMessageService.chat(request));
     }
 }
