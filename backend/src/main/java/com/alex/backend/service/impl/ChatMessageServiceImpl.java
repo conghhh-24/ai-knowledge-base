@@ -8,6 +8,7 @@ import com.alex.backend.mapper.ChatMessageMapper;
 import com.alex.backend.request.AiChatRequest;
 import com.alex.backend.service.ChatMessageService;
 import com.alex.backend.service.DocumentService;
+import com.alex.backend.service.RagAnswerCache;
 import com.alex.backend.vo.AiChatVO;
 import org.springframework.stereotype.Service;
 
@@ -16,12 +17,14 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final AiClient aiClient;
     private final ChatMessageMapper chatMessageMapper;
     private final DocumentService documentService;
+    private final RagAnswerCache answerCache;
 
     public ChatMessageServiceImpl(AiClient aiClient, ChatMessageMapper chatMessageMapper,
-                                  DocumentService documentService) {
+                                  DocumentService documentService, RagAnswerCache answerCache) {
         this.aiClient = aiClient;
         this.chatMessageMapper = chatMessageMapper;
         this.documentService = documentService;
+        this.answerCache = answerCache;
     }
 
     @Override
@@ -34,7 +37,12 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             documentService.getDocumentById(request.getDocumentId());
         }
 
-        AiChatVO response = aiClient.chat(request);
+        // Always check document ownership before reading a cached answer.
+        AiChatVO response = answerCache.get(userId, request.getDocumentId(), request.getQuestion());
+        boolean cacheHit = response != null;
+        if (!cacheHit) {
+            response = aiClient.chat(request);
+        }
         if (response == null || response.getAnswer() == null || response.getAnswer().isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         }
@@ -44,6 +52,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 request.getQuestion(), response.getAnswer());
         if (rows != 1) {
             throw new IllegalStateException("保存问答记录失败");
+        }
+        if (!cacheHit) {
+            answerCache.put(userId, request.getDocumentId(), request.getQuestion(), response);
         }
         return response;
     }

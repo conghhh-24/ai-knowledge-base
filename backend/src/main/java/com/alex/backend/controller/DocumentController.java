@@ -37,4 +37,10 @@ public class DocumentController {
         documentService.deleteDocument(id);
         return Result.success(null);
     }
+
+    @PostMapping("/{id}/rebuild-index")
+    public Result<Void> rebuildIndex(@PathVariable Long id) {
+        documentService.rebuildIndex(id);
+        return Result.success(null);
+    }
 }

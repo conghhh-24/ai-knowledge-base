@@ -11,4 +11,5 @@ public interface DocumentService {
     List<DocumentVO> listDocuments();
     DocumentVO getDocumentById(Long id);
     void deleteDocument(Long id);
+    void rebuildIndex(Long id);
 }

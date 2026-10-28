@@ -4,10 +4,18 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     document_id: int | None = None
+    top_k: int = Field(default=3, ge=1, le=20)
 
 
 class ChatResponse(BaseModel):
     answer: str
+    sources: list["ChatSource"] = Field(default_factory=list)
+
+
+class ChatSource(BaseModel):
+    text: str
+    chunk_index: int
+    distance: float
 
 
 class EmbeddingRequest(BaseModel):

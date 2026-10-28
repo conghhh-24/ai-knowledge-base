@@ -7,6 +7,7 @@ import com.alex.backend.exception.BusinessException;
 import com.alex.backend.mapper.ChatMessageMapper;
 import com.alex.backend.request.AiChatRequest;
 import com.alex.backend.service.DocumentService;
+import com.alex.backend.service.RagAnswerCache;
 import com.alex.backend.vo.AiChatVO;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,9 @@ class ChatMessageServiceImplTest {
     private final AiClient aiClient = mock(AiClient.class);
     private final ChatMessageMapper mapper = mock(ChatMessageMapper.class);
     private final DocumentService documents = mock(DocumentService.class);
+    private final RagAnswerCache cache = mock(RagAnswerCache.class);
     private final ChatMessageServiceImpl service =
-            new ChatMessageServiceImpl(aiClient, mapper, documents);
+            new ChatMessageServiceImpl(aiClient, mapper, documents, cache);
 
     @AfterEach
     void clearUser() {

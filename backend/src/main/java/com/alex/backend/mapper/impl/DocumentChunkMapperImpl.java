@@ -18,6 +18,13 @@ public class DocumentChunkMapperImpl implements DocumentChunkMapper {
     }
 
     @Override
+    public List<String> findContentsByDocumentId(Long documentId) {
+        return jdbcTemplate.queryForList(
+                "SELECT content FROM document_chunk WHERE document_id = ? ORDER BY chunk_index",
+                String.class, documentId);
+    }
+
+    @Override
     public int saveBatch(Long documentId, List<String> chunks) {
         if (chunks.isEmpty()) {
             return 0;

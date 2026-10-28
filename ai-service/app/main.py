@@ -35,7 +35,12 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    return chat_service.chat(request)
+    contexts = None
+    if request.document_id is not None:
+        contexts = get_vector_store().search(
+            request.question, request.top_k, request.document_id
+        )
+    return chat_service.chat(request, contexts)
 
 
 @app.post("/embeddings", response_model=EmbeddingResponse)

@@ -9,6 +9,12 @@ import com.alex.backend.mapper.DocumentMapper;
 import com.alex.backend.mapper.DocumentChunkMapper;
 import com.alex.backend.service.DocumentParser;
 import com.alex.backend.service.DocumentService;
+import com.alex.backend.service.RagAnswerCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.alex.backend.vo.DocumentVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,19 +27,22 @@ import java.util.UUID;
 
 @Service
 public class DocumentServiceImpl implements DocumentService {
+    private static final Logger log = LoggerFactory.getLogger(DocumentServiceImpl.class);
     private final DocumentMapper documentMapper;
     private final DocumentChunkMapper documentChunkMapper;
     private final DocumentParser documentParser;
     private final AiClient aiClient;
+    private final RagAnswerCache answerCache;
 
     public DocumentServiceImpl(DocumentMapper documentMapper,
                                DocumentChunkMapper documentChunkMapper,
                                DocumentParser documentParser,
-                               AiClient aiClient) {
+                               AiClient aiClient, RagAnswerCache answerCache) {
         this.documentMapper = documentMapper;
         this.documentChunkMapper = documentChunkMapper;
         this.documentParser = documentParser;
         this.aiClient = aiClient;
+        this.answerCache = answerCache;
     }
     @Transactional
     @Override
@@ -115,6 +124,7 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional//表示这个方法里的数据库修改先不要正式生效，等方法正常执行完再一起确认；如果中途抛出需要回滚的异常，就撤销这些修改。
     @Override
     public void deleteDocument(Long id){
+        Long userId = AuthContext.getUserId();
         String filePath = documentMapper.findFilePathByIdAndUserId(id, AuthContext.getUserId());
         if(filePath == null){
             throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
@@ -129,6 +139,41 @@ public class DocumentServiceImpl implements DocumentService {
         }catch (IOException exception) {
             throw new RuntimeException("删除文档文件失败", exception);
         }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    answerCache.evictDocument(userId, id);
+                } catch (DataAccessException e) {
+                    // Deletion has already committed. Ownership checks block access;
+                    // remaining cache entries expire through their original TTL.
+                    log.warn("Document {} deleted, but cache cleanup failed; waiting for TTL", id, e);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void rebuildIndex(Long id) {
+        getDocumentById(id);
+        Long userId = AuthContext.getUserId();
+        List<String> chunks = documentChunkMapper.findContentsByDocumentId(id);
+        if (chunks.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR);
+        }
+        // A failed batch may still have changed vectors; invalidate on both paths.
+        answerCache.evictDocument(userId, id);
+        try {
+            aiClient.upsertVectors(id, chunks);
+        } catch (RuntimeException failure) {
+            try {
+                answerCache.evictDocument(userId, id);
+            } catch (RuntimeException cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
+        }
+        answerCache.evictDocument(userId, id);
     }
     private void validateFile(MultipartFile file){
         if(file==null||file.isEmpty()){
