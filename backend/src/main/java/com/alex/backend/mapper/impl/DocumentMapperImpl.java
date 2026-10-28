@@ -61,6 +61,15 @@ public class DocumentMapperImpl implements DocumentMapper {
     }
 
     @Override
+    public int updateStatus(Long id, Long userId, String status) {
+        return jdbcTemplate.update(
+                "UPDATE document SET status = ?, update_time = CURRENT_TIMESTAMP " +
+                        "WHERE id = ? AND user_id = ?",
+                status, id, userId
+        );
+    }
+
+    @Override
     public List<DocumentVO> findByUserId(Long userId) {
 
         String sql = "SELECT id, file_name, file_type, file_size, status " +

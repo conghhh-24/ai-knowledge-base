@@ -7,6 +7,8 @@ import java.util.List;
 public interface DocumentMapper {
     Long save(Long userId, String fileName, String filePath, String fileType, Long fileSize, String status);
 
+    int updateStatus(Long id, Long userId, String status);
+
     List<DocumentVO> findByUserId(Long userId);
 
     DocumentVO findByIdAndUserId(Long id, Long userId);

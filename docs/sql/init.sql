@@ -37,3 +37,13 @@ CREATE TABLE chat_message
     answer TEXT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE document_chunk
+(
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    document_id BIGINT NOT NULL,
+    chunk_index INT NOT NULL,
+    content TEXT NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_document_chunk_index (document_id, chunk_index)
+);

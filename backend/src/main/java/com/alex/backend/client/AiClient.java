@@ -3,7 +3,9 @@ package com.alex.backend.client;
 import com.alex.backend.common.ErrorCode;
 import com.alex.backend.exception.BusinessException;
 import com.alex.backend.request.AiChatRequest;
+import com.alex.backend.request.AiVectorUpsertRequest;
 import com.alex.backend.vo.AiChatVO;
+import com.alex.backend.vo.AiVectorUpsertVO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -15,9 +17,11 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.List;
 
 @Component
 public class AiClient {
+    private static final int UPSERT_BATCH_SIZE = 20;
 
     private final RestClient restClient;
     //这是 Spring 提供的 HTTP 客户端构造器，用来创建发送请求的对象
@@ -58,5 +62,28 @@ public class AiClient {
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         }
 
+    }
+
+    public void upsertVectors(Long documentId, List<String> chunks) {
+        for (int start = 0; start < chunks.size(); start += UPSERT_BATCH_SIZE) {
+            int end = Math.min(start + UPSERT_BATCH_SIZE, chunks.size());
+            AiVectorUpsertRequest request = new AiVectorUpsertRequest(
+                    documentId, start, chunks.subList(start, end));
+            try {
+                AiVectorUpsertVO response = restClient.post()
+                        .uri("/vectors/upsert")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(request)
+                        .retrieve()
+                        .body(AiVectorUpsertVO.class);
+                if (response == null || response.getCount() != end - start) {
+                    throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+                }
+            } catch (ResourceAccessException e) {
+                throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+            } catch (HttpServerErrorException | HttpClientErrorException e) {
+                throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+            }
+        }
     }
 }

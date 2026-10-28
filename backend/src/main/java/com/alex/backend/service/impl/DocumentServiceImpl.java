@@ -2,9 +2,12 @@ package com.alex.backend.service.impl;
 
 
 import com.alex.backend.common.ErrorCode;
+import com.alex.backend.client.AiClient;
 import com.alex.backend.context.AuthContext;
 import com.alex.backend.exception.BusinessException;
 import com.alex.backend.mapper.DocumentMapper;
+import com.alex.backend.mapper.DocumentChunkMapper;
+import com.alex.backend.service.DocumentParser;
 import com.alex.backend.service.DocumentService;
 import com.alex.backend.vo.DocumentVO;
 import org.springframework.stereotype.Service;
@@ -19,10 +22,20 @@ import java.util.UUID;
 @Service
 public class DocumentServiceImpl implements DocumentService {
     private final DocumentMapper documentMapper;
+    private final DocumentChunkMapper documentChunkMapper;
+    private final DocumentParser documentParser;
+    private final AiClient aiClient;
 
-    public DocumentServiceImpl(DocumentMapper documentMapper) {
+    public DocumentServiceImpl(DocumentMapper documentMapper,
+                               DocumentChunkMapper documentChunkMapper,
+                               DocumentParser documentParser,
+                               AiClient aiClient) {
         this.documentMapper = documentMapper;
+        this.documentChunkMapper = documentChunkMapper;
+        this.documentParser = documentParser;
+        this.aiClient = aiClient;
     }
+    @Transactional
     @Override
     public DocumentVO upload(MultipartFile file) {
         validateFile(file);
@@ -52,7 +65,23 @@ public class DocumentServiceImpl implements DocumentService {
                        file.getSize(),
                        "UPLOADED"
                );
-           }catch(RuntimeException e) {
+               List<String> chunks = documentParser.parse(target, 500, 50);
+               int savedChunks = documentChunkMapper.saveBatch(documentId, chunks);
+               if (savedChunks != chunks.size()) {
+                   throw new IllegalStateException("保存文档分块失败");
+               }
+               aiClient.upsertVectors(documentId, chunks);
+               if (documentMapper.updateStatus(documentId, userId, "PARSED") != 1) {
+                   throw new IllegalStateException("更新文档状态失败");
+               }
+           } catch (IOException e) {
+               try {
+                   Files.deleteIfExists(target);
+               } catch (IOException cleanupException) {
+                   e.addSuppressed(cleanupException);
+               }
+               throw new RuntimeException("解析文档失败", e);
+           } catch(RuntimeException e) {
                try {
                    Files.deleteIfExists(target);
                }catch (IOException cleanupException) {
@@ -65,7 +94,7 @@ public class DocumentServiceImpl implements DocumentService {
         documentVO.setFileName(fileName);
         documentVO.setFileType(suffix);
         documentVO.setFileSize(file.getSize());
-        documentVO.setStatus("UPLOADED");
+        documentVO.setStatus("PARSED");
 
         return documentVO;
     }
@@ -90,6 +119,7 @@ public class DocumentServiceImpl implements DocumentService {
         if(filePath == null){
             throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
         }
+        documentChunkMapper.deleteByDocumentId(id);
         int n = documentMapper.deleteByIdAndUserId(id, AuthContext.getUserId());
         if(n == 0){
             throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
