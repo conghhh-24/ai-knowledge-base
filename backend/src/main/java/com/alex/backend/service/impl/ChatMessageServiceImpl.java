@@ -10,6 +10,8 @@ import com.alex.backend.service.ChatMessageService;
 import com.alex.backend.service.DocumentService;
 import com.alex.backend.service.RagAnswerCache;
 import com.alex.backend.vo.AiChatVO;
+import com.alex.backend.vo.ChatHistoryItemVO;
+import com.alex.backend.vo.PageResult;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -57,5 +59,22 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             answerCache.put(userId, request.getDocumentId(), request.getQuestion(), response);
         }
         return response;
+    }
+
+    @Override
+    public PageResult<ChatHistoryItemVO> history(int page, int pageSize) {
+        Long userId = AuthContext.getUserId();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.TOKEN_INVALID);
+        }
+        if (page < 1 || pageSize < 1 || pageSize > 100) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR);
+        }
+        if (page > 1 + (Integer.MAX_VALUE - 1) / pageSize) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR);
+        }
+        int offset = (page - 1) * pageSize;
+        return new PageResult<>(chatMessageMapper.countByUserId(userId), page, pageSize,
+                chatMessageMapper.findPageByUserId(userId, offset, pageSize));
     }
 }

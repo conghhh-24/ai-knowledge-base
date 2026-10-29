@@ -17,14 +17,16 @@
 - 文档解析、分块和 `document_chunk` 入库
 - 上传后自动调用 FastAPI 建立 Chroma 向量索引
 - RAG 问答和 `answer + sources` 返回
+- RAG 答案 Redis 缓存、TTL，以及文档删除 / 重建索引后的缓存失效
+- 当前用户问答历史分页查询，按创建时间倒序并按用户隔离
 
 鉴权验收已通过，详细记录见 [docs/auth-acceptance.md](docs/auth-acceptance.md)。
 RAG 验收已通过，详细记录见 [docs/rag-acceptance.md](docs/rag-acceptance.md)。
 
 尚未完成：
 
-- Redis 缓存的真实环境验收、Docker 完整编排和系统测试
-- 20–30 个问题的 RAG 评测记录
+- Docker 完整编排和端到端系统测试
+- 20–30 个问题的系统化 RAG 评测记录
 
 ## 技术栈
 
@@ -117,6 +119,7 @@ Authorization: Bearer <token>
 | GET | `/api/documents/{id}` | 获取当前用户的文档详情 |
 | DELETE | `/api/documents/{id}` | 删除当前用户的文档及本地文件 |
 | POST | `/api/ai/chat` | 基于指定文档进行 RAG 问答并返回 sources |
+| GET | `/api/ai/history?page=1&pageSize=20` | 查询当前用户问答历史，按时间倒序分页 |
 
 认证接口的请求和返回对象说明见 [docs/api-auth.md](docs/api-auth.md)。
 

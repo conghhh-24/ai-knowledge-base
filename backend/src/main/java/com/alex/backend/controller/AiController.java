@@ -5,10 +5,14 @@ import com.alex.backend.common.Result;
 import com.alex.backend.request.AiChatRequest;
 import com.alex.backend.vo.AiChatVO;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import com.alex.backend.vo.ChatHistoryItemVO;
+import com.alex.backend.vo.PageResult;
 
 @RestController
 //它告诉 Spring：
@@ -24,5 +28,12 @@ public class AiController {
     @PostMapping("/chat")
     public Result<AiChatVO> chat(@RequestBody @Valid AiChatRequest request) {//@RequestBody它告诉 Spring：把 HTTP 请求体中的 JSON 转换成 AiChatRequest 对象
         return Result.success(chatMessageService.chat(request));
+    }
+
+    @GetMapping("/history")
+    public Result<PageResult<ChatHistoryItemVO>> history(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.success(chatMessageService.history(page, pageSize));
     }
 }

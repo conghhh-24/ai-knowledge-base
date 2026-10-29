@@ -9,6 +9,8 @@ import com.alex.backend.request.AiChatRequest;
 import com.alex.backend.service.DocumentService;
 import com.alex.backend.service.RagAnswerCache;
 import com.alex.backend.vo.AiChatVO;
+import com.alex.backend.vo.ChatHistoryItemVO;
+import com.alex.backend.vo.PageResult;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -92,5 +94,62 @@ class ChatMessageServiceImplTest {
                 .thenThrow(new DataAccessResourceFailureException("database unavailable"));
 
         assertThrows(DataAccessResourceFailureException.class, () -> service.chat(request));
+    }
+
+    @Test
+    void historyUsesCurrentUserAndReturnsPage() {
+        AiChatRequest request = request();
+        ChatHistoryItemVO item = new ChatHistoryItemVO();
+        item.setId(9L);
+        item.setQuestion(request.getQuestion());
+        when(mapper.countByUserId(7L)).thenReturn(21L);
+        when(mapper.findPageByUserId(7L, 20, 20)).thenReturn(java.util.List.of(item));
+
+        PageResult<ChatHistoryItemVO> result = service.history(2, 20);
+
+        assertEquals(21L, result.getTotal());
+        assertEquals(2, result.getPage());
+        assertEquals(20, result.getPageSize());
+        assertEquals(java.util.List.of(item), result.getItems());
+        verify(mapper).countByUserId(7L);
+        verify(mapper).findPageByUserId(7L, 20, 20);
+    }
+
+    @Test
+    void historyAlwaysUsesAuthenticatedUserIdForCountAndRows() {
+        AuthContext.setUserId(8L);
+        when(mapper.countByUserId(8L)).thenReturn(1L);
+        when(mapper.findPageByUserId(8L, 0, 20)).thenReturn(java.util.List.of());
+
+        service.history(1, 20);
+
+        verify(mapper).countByUserId(8L);
+        verify(mapper).findPageByUserId(8L, 0, 20);
+        verify(mapper, never()).countByUserId(7L);
+        verify(mapper, never()).findPageByUserId(eq(7L), anyInt(), anyInt());
+    }
+
+    @Test
+    void historyRejectsInvalidPageAndUnauthenticatedUser() {
+        AuthContext.setUserId(7L);
+        assertThrows(BusinessException.class, () -> service.history(0, 20));
+        assertThrows(BusinessException.class, () -> service.history(1, 101));
+        AuthContext.clear();
+        assertThrows(BusinessException.class, () -> service.history(1, 20));
+        verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void historyPageOffsetAndSizeAreCalculatedWithoutCrossUserAccess() {
+        AuthContext.setUserId(8L);
+        when(mapper.countByUserId(8L)).thenReturn(45L);
+        when(mapper.findPageByUserId(8L, 40, 5)).thenReturn(java.util.List.of());
+
+        PageResult<ChatHistoryItemVO> result = service.history(9, 5);
+
+        assertEquals(45L, result.getTotal());
+        assertEquals(9, result.getPage());
+        assertEquals(5, result.getPageSize());
+        verify(mapper).findPageByUserId(8L, 40, 5);
     }
 }
