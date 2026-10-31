@@ -49,10 +49,10 @@ class ChatMessageServiceImplTest {
         AiChatRequest request = request();
         AiChatVO answer = answer();
         when(aiClient.chat(request)).thenReturn(answer);
-        when(mapper.save(7L, null, "你好", "你好！")).thenReturn(1);
+        when(mapper.save(7L, null, "你好", "你好！", null)).thenReturn(1);
 
         assertSame(answer, service.chat(request));
-        verify(mapper).save(7L, null, "你好", "你好！");
+        verify(mapper).save(7L, null, "你好", "你好！", null);
         verifyNoInteractions(documents);
     }
 
@@ -102,7 +102,7 @@ class ChatMessageServiceImplTest {
     void databaseFailureDoesNotReturnSuccess() {
         AiChatRequest request = request();
         when(aiClient.chat(request)).thenReturn(answer());
-        when(mapper.save(7L, null, "你好", "你好！"))
+        when(mapper.save(7L, null, "你好", "你好！", null))
                 .thenThrow(new DataAccessResourceFailureException("database unavailable"));
 
         assertThrows(DataAccessResourceFailureException.class, () -> service.chat(request));

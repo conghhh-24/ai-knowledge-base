@@ -61,6 +61,21 @@ public class DocumentMapperImpl implements DocumentMapper {
     }
 
     @Override
+    public long countByUserId(Long userId) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM document WHERE user_id = ?", Long.class, userId);
+    }
+
+    @Override
+    public int beginDelete(Long id, Long userId) {
+        return jdbcTemplate.update("UPDATE document SET status = 'DELETING', update_time = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status IN ('PARSED', 'FAILED', 'DELETING', 'INDEXING')", id, userId);
+    }
+
+    @Override
+    public int beginRebuild(Long id, Long userId) {
+        return jdbcTemplate.update("UPDATE document SET index_version = index_version + 1, status = 'INDEXING', update_time = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status IN ('PARSED', 'FAILED')", id, userId);
+    }
+
+    @Override
     public int updateStatus(Long id, Long userId, String status) {
         return jdbcTemplate.update(
                 "UPDATE document SET status = ?, update_time = CURRENT_TIMESTAMP " +
@@ -70,12 +85,12 @@ public class DocumentMapperImpl implements DocumentMapper {
     }
 
     @Override
-    public List<DocumentVO> findByUserId(Long userId) {
+    public List<DocumentVO> findPageByUserId(Long userId, int offset, int pageSize) {
 
-        String sql = "SELECT id, file_name, file_type, file_size, status " +
+        String sql = "SELECT id, file_name, file_type, file_size, status, index_version " +
                 "FROM document " +
                 "WHERE user_id = ? " +
-                "ORDER BY id DESC";
+                "ORDER BY id DESC LIMIT ? OFFSET ?";
         //jdbcTemplate.query(sql, 行转换函数, userId)
         return jdbcTemplate.query(
                 sql,
@@ -86,15 +101,16 @@ public class DocumentMapperImpl implements DocumentMapper {
                     document.setFileType(resultSet.getString("file_type"));
                     document.setFileSize(resultSet.getLong("file_size"));
                     document.setStatus(resultSet.getString("status"));
+                    document.setIndexVersion(resultSet.getLong("index_version"));
                     return document;
                 },
-                userId
+                userId, pageSize, offset
         );
     }
 
     @Override
    public DocumentVO findByIdAndUserId(Long id, Long userId) {
-        try{String sql = "SELECT id, file_name, file_type, file_size, status " +
+        try{String sql = "SELECT id, file_name, file_type, file_size, status, index_version " +
                 "FROM document " +
                 "WHERE id = ? AND user_id = ?";
         return jdbcTemplate.queryForObject(
@@ -106,6 +122,7 @@ public class DocumentMapperImpl implements DocumentMapper {
                     documentVO.setFileType(resultSet.getString("file_type"));
                     documentVO.setFileSize(resultSet.getLong("file_size"));
                     documentVO.setStatus(resultSet.getString("status"));
+                    documentVO.setIndexVersion(resultSet.getLong("index_version"));
                     return documentVO;
                 },
                 id, userId);

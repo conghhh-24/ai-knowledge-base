@@ -11,7 +11,7 @@
 - 用户注册、登录、BCrypt 密码加密
 - JWT 生成、校验和接口鉴权
 - 统一响应、参数校验和异常处理
-- TXT / Markdown 文档上传
+- TXT / Markdown 文档上传，支持用户 + Idempotency-Key 的请求幂等
 - 文档列表、详情和删除
 - 文档按用户隔离，用户只能访问自己的文档
 - 文档解析、分块和 `document_chunk` 入库
@@ -19,7 +19,10 @@
 - 上传后自动调用 FastAPI 建立 Chroma 向量索引
 - RAG 问答和 `answer + sources` 返回
 - RAG 答案 Redis 缓存、TTL，以及文档删除 / 重建索引后的缓存失效
-- 当前用户问答历史分页查询，按创建时间倒序并按用户隔离
+- 当前用户问答历史分页查询，保留 sources，按创建时间倒序并按用户隔离
+- 文档列表分页、索引版本缓存隔离、重建与删除互斥、独立超时配置和缓存 HIT/MISS 日志
+
+本次升级步骤与接口变更见 [RAG 功能完善说明](docs/rag-improvements.md)。已有数据库先执行 [升级 SQL](docs/sql/migrate-rag-improvements.sql)，再重启 Java 与 FastAPI。
 
 鉴权验收已通过，详细记录见 [docs/auth-acceptance.md](docs/auth-acceptance.md)。
 RAG 验收已通过，详细记录见 [docs/rag-acceptance.md](docs/rag-acceptance.md)。
@@ -115,8 +118,8 @@ Authorization: Bearer <token>
 | POST | `/api/auth/register` | 用户注册 |
 | POST | `/api/auth/login` | 用户登录并返回 JWT |
 | GET | `/api/auth/me` | 获取当前登录用户 |
-| POST | `/api/documents/upload` | 上传 TXT / Markdown 文档，单文件不超过 50 MB |
-| GET | `/api/documents` | 获取当前用户的文档列表 |
+| POST | `/api/documents/upload` | 上传 TXT / Markdown 文档，单文件不超过 50 MB，需 Idempotency-Key 请求头 |
+| GET | `/api/documents?page=1&pageSize=20` | 分页获取当前用户文档，返回 total/page/pageSize/items |
 | GET | `/api/documents/{id}` | 获取当前用户的文档详情 |
 | DELETE | `/api/documents/{id}` | 删除当前用户的文档及本地文件 |
 | POST | `/api/ai/chat` | 基于指定文档进行 RAG 问答并返回 sources |
@@ -142,3 +145,5 @@ Authorization: Bearer <token>
 ```
 
 完整计划见 [docs/roadmap.md](docs/roadmap.md)。
+
+上传幂等的 Key 生成、重试规则、数据库升级与验证见 [上传幂等说明](docs/upload-idempotency.md)。

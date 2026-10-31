@@ -36,18 +36,20 @@ public class DocumentServiceImpl implements DocumentService {
     private final AiClient aiClient;
     private final RagAnswerCache answerCache;
     private final DocumentUploadState uploadState;
+    private final com.alex.backend.service.DocumentOperationLock operationLock;
     private final int chunkSize;
     private final int chunkOverlap;
 
     public DocumentServiceImpl(DocumentMapper documentMapper,
                                DocumentChunkMapper documentChunkMapper,
                                DocumentParser documentParser,
-                               AiClient aiClient, RagAnswerCache answerCache, DocumentUploadState uploadState,
+                               AiClient aiClient, RagAnswerCache answerCache, DocumentUploadState uploadState, com.alex.backend.service.DocumentOperationLock operationLock,
                                @Value("${rag.chunk-size:500}") int chunkSize,
                                @Value("${rag.chunk-overlap:50}") int chunkOverlap) {
         if (chunkSize <= 0 || chunkOverlap < 0 || chunkOverlap >= chunkSize) {
             throw new IllegalArgumentException("Require chunk-size > 0 and 0 <= chunk-overlap < chunk-size");
         }
+        this.operationLock = operationLock;
         this.documentMapper = documentMapper;
         this.documentChunkMapper = documentChunkMapper;
         this.documentParser = documentParser;
@@ -58,14 +60,29 @@ public class DocumentServiceImpl implements DocumentService {
         this.chunkOverlap = chunkOverlap;
     }
     @Override
-    public DocumentVO upload(MultipartFile file) {
+    public DocumentVO upload(MultipartFile file, String idempotencyKey) {
+        if (idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9_-]{1,128}"))
+            throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_INVALID);
         validateFile(file);
         Long userId = AuthContext.getUserId();
         if (userId == null) throw new BusinessException(ErrorCode.TOKEN_INVALID);
         String fileName = file.getOriginalFilename();
         String suffix = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
         Path target = Path.of("storage", userId.toString(), UUID.randomUUID() + suffix).toAbsolutePath();
-        Long documentId = uploadState.create(userId, fileName, target.toString(), suffix, file.getSize());
+        String hash = uploadFingerprint(file);
+        Long documentId;
+        try {
+            documentId = uploadState.createUpload(userId, idempotencyKey, hash,
+                    fileName, target.toString(), suffix, file.getSize());
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            return uploadState.replayUpload(userId, idempotencyKey, hash);
+        }
+        DocumentVO documentVO = new DocumentVO();
+        documentVO.setId(documentId);
+        documentVO.setFileName(fileName);
+        documentVO.setFileType(suffix);
+        documentVO.setFileSize(file.getSize());
+        documentVO.setStatus("PARSED");
         boolean indexingStarted = false;
         try {
             Files.createDirectories(target.getParent());
@@ -76,9 +93,10 @@ public class DocumentServiceImpl implements DocumentService {
             }
             indexingStarted = true;
             aiClient.upsertVectors(documentId, chunks);
-            uploadState.complete(documentId, userId, chunks);
+            uploadState.completeUpload(documentId, userId, idempotencyKey, chunks, documentVO);
         } catch (IOException | RuntimeException failure) {
-            try { uploadState.fail(documentId, userId); }
+            ErrorCode error = failure instanceof BusinessException business ? business.getErrorCode() : ErrorCode.UPLOAD_FAILED;
+            try { uploadState.failUpload(documentId, userId, idempotencyKey, error); }
             catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
             if (indexingStarted) {
                 try { aiClient.deleteVectors(documentId); }
@@ -90,19 +108,16 @@ public class DocumentServiceImpl implements DocumentService {
             if (failure instanceof RuntimeException runtime) throw runtime;
             throw new RuntimeException("文档上传处理失败", failure);
         }
-        DocumentVO documentVO = new DocumentVO();
-        documentVO.setId(documentId);
-        documentVO.setFileName(fileName);
-        documentVO.setFileType(suffix);
-        documentVO.setFileSize(file.getSize());
-        documentVO.setStatus("PARSED");
-
         return documentVO;
     }
     @Override
-    public List<DocumentVO> listDocuments(){
+    public com.alex.backend.vo.PageResult<DocumentVO> listDocuments(int page, int pageSize){
+        if (page < 1 || pageSize < 1 || pageSize > 100 || (long)(page - 1) * pageSize > Integer.MAX_VALUE)
+            throw new BusinessException(ErrorCode.PARAM_ERROR);
         Long userId = AuthContext.getUserId();
-        return documentMapper.findByUserId(userId);
+        if (userId == null) throw new BusinessException(ErrorCode.TOKEN_INVALID);
+        return new com.alex.backend.vo.PageResult<>(documentMapper.countByUserId(userId), page, pageSize,
+                documentMapper.findPageByUserId(userId, (page - 1) * pageSize, pageSize));
     }
 
     @Override
@@ -116,6 +131,12 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional//表示这个方法里的数据库修改先不要正式生效，等方法正常执行完再一起确认；如果中途抛出需要回滚的异常，就撤销这些修改。
     @Override
     public void deleteDocument(Long id){
+        try (var ignored = operationLock.acquire(id)) {
+            deleteLocked(id);
+        }
+    }
+
+    private void deleteLocked(Long id) {
         Long userId = AuthContext.getUserId();
         String filePath = documentMapper.findFilePathByIdAndUserId(id, AuthContext.getUserId());
         if(filePath == null){
@@ -150,6 +171,12 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public void rebuildIndex(Long id) {
+        try (var ignored = operationLock.acquire(id)) {
+            rebuildLocked(id);
+        }
+    }
+
+    private void rebuildLocked(Long id) {
         String status = getDocumentById(id).getStatus();
         if (!"PARSED".equals(status) && !"FAILED".equals(status)) {
             throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
@@ -161,11 +188,15 @@ public class DocumentServiceImpl implements DocumentService {
         }
         // A failed batch may still have changed vectors; invalidate on both paths.
         answerCache.evictDocument(userId, id);
-        uploadState.indexFailed(id, userId);
+        uploadState.beginRebuild(id, userId);
         try {
             aiClient.deleteVectors(id);
             aiClient.upsertVectors(id, chunks);
+            answerCache.evictDocument(userId, id);
+            uploadState.indexed(id, userId);
         } catch (RuntimeException failure) {
+            try { uploadState.indexFailed(id, userId); }
+            catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
             try { aiClient.deleteVectors(id); }
             catch (RuntimeException cleanupFailure) { failure.addSuppressed(cleanupFailure); }
             try {
@@ -175,9 +206,21 @@ public class DocumentServiceImpl implements DocumentService {
             }
             throw failure;
         }
-        answerCache.evictDocument(userId, id);
-        uploadState.indexed(id, userId);
     }
+    private String uploadFingerprint(MultipartFile file) {
+        try {
+            var digest = java.security.MessageDigest.getInstance("SHA-256");
+            digest.update(file.getOriginalFilename().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            try (var input = new java.security.DigestInputStream(file.getInputStream(), digest)) {
+                input.transferTo(java.io.OutputStream.nullOutputStream());
+            }
+            return java.util.HexFormat.of().formatHex(digest.digest());
+        } catch (IOException ex) {
+            throw new BusinessException(ErrorCode.UPLOAD_FAILED);
+        } catch (java.security.NoSuchAlgorithmException ex) { throw new IllegalStateException(ex); }
+    }
+
     private void validateFile(MultipartFile file){
         if(file==null||file.isEmpty()){
             throw new BusinessException(ErrorCode.PARAM_ERROR);

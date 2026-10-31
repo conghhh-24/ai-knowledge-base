@@ -33,3 +33,7 @@ mvn -f backend/pom.xml '-Djwt.secret=rag-cache-test-only-secret-0123456789abcdef
 - 历史查询测试验证当前用户隔离、分页偏移、非法分页参数和未登录拒绝。
 
 测试未调用真实 Embedding / LLM API，也未执行真实业务文档删除。
+
+## 2026-10-31 更新：版本隔离
+
+缓存已升级为 `rag:answer:v2:{userId}:{documentId}:{indexVersion}:{questionHash}`；重建递增版本、进入 INDEXING，问答返回前复查版本。重建与删除使用相同 MySQL 会话锁互斥。原 v1 键不再读取，等待 TTL 到期。具体配置、边界及验证见 [功能完善说明](rag-improvements.md)。

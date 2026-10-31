@@ -13,6 +13,7 @@ class LLMClient:
             self.client = OpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url,
+                max_retries=0,
                 timeout=self.timeout_seconds,
             )
 

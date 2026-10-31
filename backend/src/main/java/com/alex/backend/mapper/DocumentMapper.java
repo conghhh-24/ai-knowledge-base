@@ -9,7 +9,10 @@ public interface DocumentMapper {
 
     int updateStatus(Long id, Long userId, String status);
 
-    List<DocumentVO> findByUserId(Long userId);
+    List<DocumentVO> findPageByUserId(Long userId, int offset, int pageSize);
+    long countByUserId(Long userId);
+    int beginDelete(Long id, Long userId);
+    int beginRebuild(Long id, Long userId);
 
     DocumentVO findByIdAndUserId(Long id, Long userId);
 

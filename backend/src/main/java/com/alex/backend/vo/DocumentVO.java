@@ -2,6 +2,9 @@ package com.alex.backend.vo;
 
 public class DocumentVO {
     private long id;
+    private long indexVersion = 1;
+    public long getIndexVersion() { return indexVersion; }
+    public void setIndexVersion(long version) { this.indexVersion = version; }
     private String fileName;
     private String fileType;
     private Long fileSize;

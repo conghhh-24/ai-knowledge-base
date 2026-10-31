@@ -10,5 +10,6 @@ public class ChatHistoryItemVO {
     private Long documentId;
     private String question;
     private String answer;
+    private java.util.List<AiSourceVO> sources = java.util.List.of();
     private LocalDateTime createTime;
 }

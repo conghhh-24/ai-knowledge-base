@@ -51,7 +51,7 @@ class RagAnswerCacheTest {
             stored.put(call.getArgument(0), call.getArgument(1));
             return null;
         }).when(values).set(anyString(), anyString(), any(Duration.class));
-        when(mapper.save(anyLong(), anyLong(), anyString(), anyString())).thenReturn(1);
+        when(mapper.save(anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(1);
         AiSourceVO source = new AiSourceVO();
         source.setText("文档内容");
         source.setChunkIndex(2);
@@ -81,11 +81,11 @@ class RagAnswerCacheTest {
         assertEquals(first, second);
         assertNotSame(first, second);
         verify(ai, times(1)).chat(any());
-        verify(documents, times(2)).getDocumentById(12L);
-        verify(mapper, times(2)).save(7L, 12L, "问题", first.getAnswer());
+        verify(documents, times(4)).getDocumentById(12L);
+        verify(mapper, times(2)).save(7L, 12L, "问题", first.getAnswer(), first.getSources());
         ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
         verify(values).set(key.capture(), anyString(), eq(Duration.ofMinutes(30)));
-        assertTrue(key.getValue().matches("rag:answer:v1:7:12:[0-9a-f]{64}"));
+        assertTrue(key.getValue().matches("rag:answer:v2:7:12:1:[0-9a-f]{64}"));
     }
 
     @Test
@@ -146,7 +146,7 @@ class RagAnswerCacheTest {
 
     @Test
     void failedHistoryWriteDoesNotPopulateCache() {
-        when(mapper.save(anyLong(), anyLong(), anyString(), anyString())).thenReturn(0);
+        when(mapper.save(anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(0);
         assertThrows(IllegalStateException.class, () -> service.chat(request(12L, "问题")));
         assertTrue(stored.isEmpty());
     }
@@ -155,10 +155,34 @@ class RagAnswerCacheTest {
     void noDocumentBypassesCache() {
         AiChatRequest request = request(12L, "问题");
         request.setDocumentId(null);
-        when(mapper.save(eq(7L), isNull(), anyString(), anyString())).thenReturn(1);
+        when(mapper.save(eq(7L), isNull(), anyString(), anyString(), any())).thenReturn(1);
         service.chat(request);
         service.chat(request);
         verifyNoInteractions(values);
         verify(ai, times(2)).chat(any());
+    }
+    @Test
+    void newIndexVersionCannotHitOldAnswer() {
+        service.chat(request(12L, "问题"));
+        var document = new com.alex.backend.vo.DocumentVO();
+        document.setStatus("PARSED");
+        document.setIndexVersion(2);
+        when(documents.getDocumentById(12L)).thenReturn(document);
+        service.chat(request(12L, "问题"));
+        verify(ai, times(2)).chat(any());
+        assertEquals(2, stored.size());
+    }
+
+    @Test
+    void rebuildDuringGenerationPreventsHistoryAndCacheWrite() {
+        var old = new com.alex.backend.vo.DocumentVO();
+        old.setStatus("PARSED");
+        var updated = new com.alex.backend.vo.DocumentVO();
+        updated.setStatus("PARSED");
+        updated.setIndexVersion(2);
+        when(documents.getDocumentById(12L)).thenReturn(old, updated);
+        assertThrows(BusinessException.class, () -> service.chat(request(12L, "问题")));
+        verifyNoInteractions(mapper);
+        assertTrue(stored.isEmpty());
     }
 }

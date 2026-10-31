@@ -31,7 +31,7 @@ class DocumentCacheInvalidationTest {
     private final RagAnswerCache cache = mock(RagAnswerCache.class);
     private final DocumentServiceImpl service = new DocumentServiceImpl(
             documents, chunks, mock(DocumentParser.class), ai, cache,
-            mock(DocumentUploadState.class), 500, 50);
+            mock(DocumentUploadState.class), mock(com.alex.backend.service.DocumentOperationLock.class), 500, 50);
     @TempDir Path directory;
 
     @BeforeEach

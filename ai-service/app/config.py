@@ -15,6 +15,7 @@ class Settings:
         self.llm_timeout_seconds = float(
             os.getenv("LLM_TIMEOUT_SECONDS", "10")
         )
+        self.embedding_timeout_seconds = float(os.getenv("EMBEDDING_TIMEOUT_SECONDS", "45"))
         self.embedding_api_key = os.getenv("DASHSCOPE_API_KEY")
         self.embedding_base_url = os.getenv(
             "DASHSCOPE_BASE_URL",

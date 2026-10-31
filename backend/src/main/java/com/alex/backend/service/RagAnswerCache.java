@@ -37,12 +37,14 @@ public class RagAnswerCache {
         this.ttl = ttl;
     }
 
-    public AiChatVO get(Long userId, Long documentId, String question) {
+    public AiChatVO get(Long userId, Long documentId, String question) { return get(userId, documentId, question, 1); }
+
+    public AiChatVO get(Long userId, Long documentId, String question, long version) {
         if (documentId == null) {
             return null;
         }
         try {
-            String json = redis.opsForValue().get(key(userId, documentId, question));
+            String json = redis.opsForValue().get(key(userId, documentId, question, version));
             if (json == null) {
                 return null;
             }
@@ -54,13 +56,15 @@ public class RagAnswerCache {
         }
     }
 
-    public void put(Long userId, Long documentId, String question, AiChatVO answer) {
+    public void put(Long userId, Long documentId, String question, AiChatVO answer) { put(userId, documentId, question, answer, 1); }
+
+    public void put(Long userId, Long documentId, String question, AiChatVO answer, long version) {
         if (documentId == null || !valid(answer)) {
             return;
         }
         try {
             // SET with TTL is atomic: a successful write always has an expiry.
-            redis.opsForValue().set(key(userId, documentId, question),
+            redis.opsForValue().set(key(userId, documentId, question, version),
                     objectMapper.writeValueAsString(answer), ttl);
         } catch (DataAccessException | JsonProcessingException e) {
             log.warn("RAG cache write failed; returning generated answer");
@@ -70,7 +74,7 @@ public class RagAnswerCache {
     // SCAN avoids blocking Redis with KEYS; delete in bounded batches.
     // Let callers see failures: an index rebuild must not silently retain old answers.
     public void evictDocument(Long userId, Long documentId) {
-        String pattern = "rag:answer:v1:" + userId + ":" + documentId + ":*";
+        String pattern = "rag:answer:v2:" + userId + ":" + documentId + ":*";
         try (Cursor<String> cursor = redis.scan(ScanOptions.scanOptions()
                 .match(pattern).count(200).build())) {
             List<String> batch = new ArrayList<>(200);
@@ -91,11 +95,11 @@ public class RagAnswerCache {
         return answer != null && answer.getAnswer() != null && !answer.getAnswer().isBlank();
     }
 
-    private String key(Long userId, Long documentId, String question) {
+    private String key(Long userId, Long documentId, String question, long version) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(question.getBytes(StandardCharsets.UTF_8));
-            return "rag:answer:v1:" + userId + ":" + documentId + ":"
+            return "rag:answer:v2:" + userId + ":" + documentId + ":" + version + ":"
                     + HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 unavailable", e);

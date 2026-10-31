@@ -73,7 +73,7 @@ class RagAnswerCacheRedisTest {
             AiChatVO answer = new AiChatVO();
             answer.setAnswer("Redis integration test answer");
             when(ai.chat(any())).thenReturn(answer);
-            when(mapper.save(anyLong(), anyLong(), anyString(), anyString())).thenReturn(1);
+            when(mapper.save(anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(1);
             AuthContext.setUserId(-1L);
             AiChatRequest request = new AiChatRequest();
             request.setDocumentId(-1L);

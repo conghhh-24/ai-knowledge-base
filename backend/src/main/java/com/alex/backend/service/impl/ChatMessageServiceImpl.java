@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ChatMessageServiceImpl implements ChatMessageService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ChatMessageServiceImpl.class);
     private final AiClient aiClient;
     private final ChatMessageMapper chatMessageMapper;
     private final DocumentService documentService;
@@ -35,15 +36,20 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         if (userId == null) {
             throw new BusinessException(ErrorCode.TOKEN_INVALID);
         }
+        long version = 1;
         if (request.getDocumentId() != null) {
-            if (!"PARSED".equals(documentService.getDocumentById(request.getDocumentId()).getStatus())) {
+            var document = documentService.getDocumentById(request.getDocumentId());
+            version = document.getIndexVersion();
+            if (!"PARSED".equals(document.getStatus())) {
                 throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
             }
         }
 
         // Always check document ownership before reading a cached answer.
-        AiChatVO response = answerCache.get(userId, request.getDocumentId(), request.getQuestion());
+        AiChatVO response = answerCache.get(userId, request.getDocumentId(), request.getQuestion(), version);
         boolean cacheHit = response != null;
+        log.info("RAG cache={} userId={} documentId={} indexVersion={}",
+                request.getDocumentId() == null ? "BYPASS" : (cacheHit ? "HIT" : "MISS"), userId, request.getDocumentId(), version);
         if (!cacheHit) {
             response = aiClient.chat(request);
         }
@@ -51,14 +57,19 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         }
 
+        if (request.getDocumentId() != null) {
+            var current = documentService.getDocumentById(request.getDocumentId());
+            if (!"PARSED".equals(current.getStatus()) || current.getIndexVersion() != version)
+                throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
+        }
         // AI 调用成功后再写入，避免将失败请求保存成成功问答。
         int rows = chatMessageMapper.save(userId, request.getDocumentId(),
-                request.getQuestion(), response.getAnswer());
+                request.getQuestion(), response.getAnswer(), response.getSources());
         if (rows != 1) {
             throw new IllegalStateException("保存问答记录失败");
         }
         if (!cacheHit) {
-            answerCache.put(userId, request.getDocumentId(), request.getQuestion(), response);
+            answerCache.put(userId, request.getDocumentId(), request.getQuestion(), response, version);
         }
         return response;
     }

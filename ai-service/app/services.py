@@ -7,6 +7,8 @@ class ChatService:
         self.llm_client = LLMClient()
 
     def chat(self, request: ChatRequest, contexts: list[dict] | None = None) -> ChatResponse:
+        if request.document_id is not None and not contexts:
+            return ChatResponse(answer="文档中没有相关信息", sources=[])
         prompt = request.question
         if contexts:
             context_text = "\n\n".join(

@@ -18,13 +18,16 @@ public class DocumentController {
     }
 
     @GetMapping
-    public Result<List<DocumentVO>> listDocuments() {
-        return Result.success(documentService.listDocuments());
+    public Result<com.alex.backend.vo.PageResult<DocumentVO>> listDocuments(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.success(documentService.listDocuments(page, pageSize));
     }
 
     @PostMapping("/upload")
-    public Result<DocumentVO> upload(@RequestParam("file") MultipartFile file) {//@RequestParam 用于 Controller 从 HTTP 请求中接收参数
-        return Result.success(documentService.upload(file));
+    public Result<DocumentVO> upload(@RequestParam("file") MultipartFile file,
+                                     @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {//@RequestParam 用于 Controller 从 HTTP 请求中接收参数
+        return Result.success(documentService.upload(file, idempotencyKey));
     }
 
     @GetMapping("/{id}")
