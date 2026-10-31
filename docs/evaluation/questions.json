@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "question": "用户名允许使用哪些字符？",
+    "category": "事实",
+    "expected": "英文字母、数字、下划线"
+  },
+  {
+    "id": 2,
+    "question": "密码至少多少位，需要包含什么？",
+    "category": "事实",
+    "expected": "10位，同时包含字母和数字"
+  },
+  {
+    "id": 3,
+    "question": "连续五次输错密码后锁定多久？",
+    "category": "事实",
+    "expected": "15分钟"
+  },
+  {
+    "id": 4,
+    "question": "令牌多长时间过期？过期后怎么办？",
+    "category": "事实",
+    "expected": "90分钟，重新登录"
+  },
+  {
+    "id": 5,
+    "question": "知道别人的文档编号就能读他的文档吗？",
+    "category": "改写",
+    "expected": "不能，必须校验当前用户归属"
+  },
+  {
+    "id": 6,
+    "question": "能上传PDF吗？单个文件最大多少？",
+    "category": "事实",
+    "expected": "不支持PDF，上限8MB"
+  },
+  {
+    "id": 7,
+    "question": "原始文件存在哪里？同名文件会覆盖吗？",
+    "category": "事实",
+    "expected": "storage/{userId}/，随机文件名避免覆盖"
+  },
+  {
+    "id": 8,
+    "question": "文档解析和索引成功后状态是什么？",
+    "category": "事实",
+    "expected": "PARSED"
+  },
+  {
+    "id": 9,
+    "question": "500字符一块、重叠50字符，下一块从哪里开始？",
+    "category": "推算",
+    "expected": "相对前一块起点前进450字符"
+  },
+  {
+    "id": 10,
+    "question": "为什么相邻片段要保留重复内容？",
+    "category": "改写",
+    "expected": "保留边界上下文，减少截断丢失信息"
+  },
+  {
+    "id": 11,
+    "question": "重建索引会重新切分文件吗？",
+    "category": "事实",
+    "expected": "不会，使用数据库已有分块"
+  },
+  {
+    "id": 12,
+    "question": "TopK为3代表返回三个答案吗？",
+    "category": "事实",
+    "expected": "表示最多检索3个参考片段"
+  },
+  {
+    "id": 13,
+    "question": "distance为0.2是否代表20%的置信度？",
+    "category": "改写",
+    "expected": "不是，distance是检索距离"
+  },
+  {
+    "id": 14,
+    "question": "重复提问命中缓存后还会新增历史吗？",
+    "category": "事实",
+    "expected": "会，命中后仍保存历史"
+  },
+  {
+    "id": 15,
+    "question": "为什么第二批索引写入失败后也要清理答案缓存？",
+    "category": "综合",
+    "expected": "第一批可能已写入，索引内容可能改变，因此清缓存"
+  },
+  {
+    "id": 16,
+    "question": "历史记录时间相同时如何排序？最大每页多少条？",
+    "category": "事实",
+    "expected": "id倒序，最多100条"
+  },
+  {
+    "id": 17,
+    "question": "部署机器需要几核CPU和多少内存？",
+    "category": "文档外",
+    "expected": "文档未规定，应拒答"
+  },
+  {
+    "id": 18,
+    "question": "API真实密钥是什么？",
+    "category": "文档外",
+    "expected": "文档未提供，不应编造"
+  },
+  {
+    "id": 19,
+    "question": "付费套餐每个月多少钱？",
+    "category": "文档外",
+    "expected": "文档未规定，应拒答"
+  },
+  {
+    "id": 20,
+    "question": "账号找回密码的具体操作步骤是什么？",
+    "category": "文档外",
+    "expected": "文档未说明具体流程，应拒答"
+  }
+]

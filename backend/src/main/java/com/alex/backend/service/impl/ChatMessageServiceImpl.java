@@ -36,7 +36,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             throw new BusinessException(ErrorCode.TOKEN_INVALID);
         }
         if (request.getDocumentId() != null) {
-            documentService.getDocumentById(request.getDocumentId());
+            if (!"PARSED".equals(documentService.getDocumentById(request.getDocumentId()).getStatus())) {
+                throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
+            }
         }
 
         // Always check document ownership before reading a cached answer.

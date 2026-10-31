@@ -64,6 +64,17 @@ public class AiClient {
 
     }
 
+    public void deleteVectors(Long documentId) {
+        try {
+            restClient.delete().uri("/vectors/{documentId}", documentId)
+                    .retrieve().toBodilessEntity();
+        } catch (ResourceAccessException e) {
+            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        } catch (HttpServerErrorException | HttpClientErrorException e) {
+            throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+        }
+    }
+
     public void upsertVectors(Long documentId, List<String> chunks) {
         for (int start = 0; start < chunks.size(); start += UPSERT_BATCH_SIZE) {
             int end = Math.min(start + UPSERT_BATCH_SIZE, chunks.size());

@@ -42,6 +42,9 @@ class RagAnswerCacheTest {
     @BeforeEach
     void setup() {
         AuthContext.setUserId(7L);
+        com.alex.backend.vo.DocumentVO document = new com.alex.backend.vo.DocumentVO();
+        document.setStatus("PARSED");
+        when(documents.getDocumentById(anyLong())).thenReturn(document);
         when(redis.opsForValue()).thenReturn(values);
         when(values.get(anyString())).thenAnswer(call -> stored.get(call.getArgument(0)));
         doAnswer(call -> {

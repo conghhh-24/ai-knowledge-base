@@ -66,6 +66,9 @@ class RagAnswerCacheRedisTest {
             AiClient ai = mock(AiClient.class);
             ChatMessageMapper mapper = mock(ChatMessageMapper.class);
             DocumentService documents = mock(DocumentService.class);
+            com.alex.backend.vo.DocumentVO document = new com.alex.backend.vo.DocumentVO();
+            document.setStatus("PARSED");
+            when(documents.getDocumentById(anyLong())).thenReturn(document);
             ChatMessageServiceImpl service = new ChatMessageServiceImpl(ai, mapper, documents, cache);
             AiChatVO answer = new AiChatVO();
             answer.setAnswer("Redis integration test answer");

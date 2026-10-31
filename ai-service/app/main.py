@@ -57,6 +57,12 @@ def upsert_vectors(request: VectorUpsertRequest):
     return VectorUpsertResponse(count=count)
 
 
+@app.delete("/vectors/{document_id}", status_code=204)
+def delete_vectors(document_id: int):
+    # Deleting an absent document is also successful, so cleanup can be retried.
+    get_vector_store().delete(document_id)
+
+
 @app.post("/vectors/search")
 def search_vectors(request: VectorSearchRequest):
     return {"results": get_vector_store().search(

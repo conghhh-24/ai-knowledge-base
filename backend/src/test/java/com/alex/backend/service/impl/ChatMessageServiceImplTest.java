@@ -68,6 +68,18 @@ class ChatMessageServiceImplTest {
     }
 
     @Test
+    void failedDocumentCannotUseResidualVectorsOrCachedAnswer() {
+        AiChatRequest request = request();
+        request.setDocumentId(12L);
+        com.alex.backend.vo.DocumentVO document = new com.alex.backend.vo.DocumentVO();
+        document.setStatus("FAILED");
+        when(documents.getDocumentById(12L)).thenReturn(document);
+        assertEquals(ErrorCode.DOCUMENT_NOT_READY,
+                assertThrows(BusinessException.class, () -> service.chat(request)).getErrorCode());
+        verifyNoInteractions(aiClient, cache, mapper);
+    }
+
+    @Test
     void aiFailureDoesNotCreateRecord() {
         AiChatRequest request = request();
         when(aiClient.chat(request))

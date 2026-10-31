@@ -6,6 +6,7 @@ import com.alex.backend.exception.BusinessException;
 import com.alex.backend.mapper.DocumentChunkMapper;
 import com.alex.backend.mapper.DocumentMapper;
 import com.alex.backend.service.DocumentParser;
+import com.alex.backend.service.DocumentUploadState;
 import com.alex.backend.service.RagAnswerCache;
 import com.alex.backend.vo.DocumentVO;
 import org.junit.jupiter.api.AfterEach;
@@ -29,7 +30,8 @@ class DocumentCacheInvalidationTest {
     private final AiClient ai = mock(AiClient.class);
     private final RagAnswerCache cache = mock(RagAnswerCache.class);
     private final DocumentServiceImpl service = new DocumentServiceImpl(
-            documents, chunks, mock(DocumentParser.class), ai, cache);
+            documents, chunks, mock(DocumentParser.class), ai, cache,
+            mock(DocumentUploadState.class), 500, 50);
     @TempDir Path directory;
 
     @BeforeEach
@@ -77,6 +79,16 @@ class DocumentCacheInvalidationTest {
     }
 
     @Test
+    void vectorDeletionFailureKeepsFileAndDatabaseForRetry() throws Exception {
+        Path file = prepareDelete();
+        doThrow(new IllegalStateException("AI unavailable")).when(ai).deleteVectors(12L);
+        assertThrows(IllegalStateException.class, () -> service.deleteDocument(12L));
+        assertTrue(Files.exists(file));
+        verify(documents, never()).deleteByIdAndUserId(anyLong(), anyLong());
+        verifyNoInteractions(chunks, cache);
+    }
+
+    @Test
     void unauthorizedDeleteDoesNotInvalidate() {
         assertThrows(BusinessException.class, () -> service.deleteDocument(12L));
         commit();
@@ -102,7 +114,9 @@ class DocumentCacheInvalidationTest {
     }
 
     private void prepareRebuild() {
-        when(documents.findByIdAndUserId(12L, 7L)).thenReturn(new DocumentVO());
+        DocumentVO document = new DocumentVO();
+        document.setStatus("PARSED");
+        when(documents.findByIdAndUserId(12L, 7L)).thenReturn(document);
         when(chunks.findContentsByDocumentId(12L)).thenReturn(List.of("first", "second"));
     }
 

@@ -15,6 +15,7 @@
 - 文档列表、详情和删除
 - 文档按用户隔离，用户只能访问自己的文档
 - 文档解析、分块和 `document_chunk` 入库
+- 分块参数可配置，失败上传保留 FAILED，上传失败和文档删除时清理向量（见 [文档一致性说明](docs/document-consistency.md)）
 - 上传后自动调用 FastAPI 建立 Chroma 向量索引
 - RAG 问答和 `answer + sources` 返回
 - RAG 答案 Redis 缓存、TTL，以及文档删除 / 重建索引后的缓存失效
@@ -26,7 +27,7 @@ RAG 验收已通过，详细记录见 [docs/rag-acceptance.md](docs/rag-acceptan
 尚未完成：
 
 - Docker 完整编排和端到端系统测试
-- 20–30 个问题的系统化 RAG 评测记录
+- 更长文档和更多参数组合的 RAG 评测扩展
 
 ## 技术栈
 
